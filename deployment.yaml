@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+   name: your-app
+   namespace: your-namespace
+   labels:
+      app: your-app
+spec:
+   selector:
+      matchLabels:
+         app: your-app
+   replicas: 1
+   template:
+      metadata:
+         labels:
+            app: your-app
+      spec:
+         serviceAccountName: your-app
+         containers:
+            - name: your-app
+              image: <your-acr-image-name>
+              env:
+                - name: TEMPORAL_ADDRESS
+                  valueFrom:
+                    configMapKeyRef:
+                      name: temporal-worker-config
+                      key: TEMPORAL_ADDRESS
+                - name: TEMPORAL_NAMESPACE
+                  valueFrom:
+                    configMapKeyRef:
+                      name: temporal-worker-config
+                      key: TEMPORAL_NAMESPACE
+                - name: TEMPORAL_TASK_QUEUE
+                  valueFrom:
+                    configMapKeyRef:
+                      name: temporal-worker-config
+                      key: TEMPORAL_TASK_QUEUE
+                - name: TEMPORAL_API_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: temporal-secret
+                      key: TEMPORAL_API_KEY
+              resources:
+                limits:
+                  cpu: "0.5"
+                  memory: "512Mi"
+                requests:
+                  cpu: "0.2"
+                  memory: "256Mi"

@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: temporal-worker-config
+  namespace: temporal-system
+data:
+  TEMPORAL_HOST_URL: "<your-temporal-address>"
+  TEMPORAL_NAMESPACE: "<your-temporal-namespace>"
+  TEMPORAL_TASK_QUEUE: "<your-task-queue>"
