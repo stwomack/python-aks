@@ -1,24 +1,24 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-   name: your-app
-   namespace: your-namespace
+   name: demo-app
+   namespace: default
    labels:
-      app: your-app
+      app: demo-app
 spec:
    selector:
       matchLabels:
-         app: your-app
+         app: demo-app
    replicas: 1
    template:
       metadata:
          labels:
-            app: your-app
+            app: demo-app
       spec:
-         serviceAccountName: your-app
+         serviceAccountName: demo-app
          containers:
-            - name: your-app
-              image: <your-acr-image-name>
+            - name: demo-app
+              image: demo-app:latest
               env:
                 - name: TEMPORAL_ADDRESS
                   valueFrom:

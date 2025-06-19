@@ -1,13 +1,10 @@
 #!/bin/bash
 
-# Set environment variables
-export AZURE_SUBSCRIPTION_ID=${AZURE_SUBSCRIPTION_ID:-"<your_subscription_id>"}
-export ACR_NAME=${ACR_NAME:-"<your_acr_name>"}
-export RESOURCE_GROUP=${RESOURCE_GROUP:-"<your_resource_group>"}
-export TEMPORAL_API_KEY=${TEMPORAL_API_KEY:-"<your_temporal_api_key>"}
+# Source the centralized configuration
+source ./source_config.sh
 
 echo "Building Docker image for linux/amd64..."
-docker buildx build --platform linux/amd64 -t your-app .
+docker buildx build --platform linux/amd64 -t $APP_NAME .
 
 echo "Creating ACR instance..."
 az acr create --resource-group $RESOURCE_GROUP --name $ACR_NAME --sku Basic
@@ -16,22 +13,25 @@ echo "Logging into ACR..."
 az acr login --name $ACR_NAME
 
 echo "Tagging and pushing image to ACR..."
-docker tag your-app $ACR_NAME.azurecr.io/your-app:latest
-docker push $ACR_NAME.azurecr.io/your-app:latest
+docker tag $APP_NAME $ACR_NAME.azurecr.io/$APP_NAME:latest
+docker push $ACR_NAME.azurecr.io/$APP_NAME:latest
+
+echo "Generating Kubernetes manifests from config..."
+./generate-k8s-manifests.sh
 
 echo "Creating Kubernetes namespace..."
-kubectl create namespace your-namespace
+kubectl create namespace $KUBERNETES_NAMESPACE
 
 echo "Applying ConfigMap..."
-kubectl apply -f config-map.yaml --namespace your-namespace
+kubectl apply -f config-map.yaml --namespace $KUBERNETES_NAMESPACE
 
 echo "Creating Kubernetes secret for Temporal API key..."
 kubectl create secret generic temporal-secret \
     --from-literal=TEMPORAL_API_KEY=$TEMPORAL_API_KEY \
-    --namespace your-namespace
+    --namespace $KUBERNETES_NAMESPACE
 
 echo "Deploying to AKS..."
-kubectl apply -f deployment.yaml --namespace your-namespace
+kubectl apply -f deployment.yaml --namespace $KUBERNETES_NAMESPACE
 
 echo "Deployment complete! Checking pod status..."
-kubectl get pods -n your-namespace
+kubectl get pods -n $KUBERNETES_NAMESPACE

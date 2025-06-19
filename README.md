@@ -12,11 +12,15 @@ This project implements a Temporal worker that processes workflows and activitie
 ├── activities.py      # Temporal activity definitions
 ├── worker.py         # Main worker application
 ├── workflows.py      # Temporal workflow definitions
+├── config.py         # Configuration management module
+├── config.env        # Centralized configuration file
+├── source_config.sh  # Script to source configuration
 ├── Dockerfile        # Container build configuration
 ├── deployment.yaml   # Kubernetes deployment manifest
 ├── config-map.yaml   # ConfigMap for environment variables
 ├── deploy.sh         # Deployment script
-└── validate.sh       # Validation script
+├── validate.sh       # Validation script
+└── generate-k8s-manifests.sh # K8s manifest generator
 ```
 
 ## Components
@@ -36,12 +40,19 @@ This project implements a Temporal worker that processes workflows and activitie
 
 ## Configuration
 
-The application uses environment variables for configuration:
+This project uses a centralized configuration system. All environment variables are managed in `config.env`:
 
+### Key Configuration Variables
 - `TEMPORAL_ADDRESS`: Temporal server address (default: localhost:7233)
 - `TEMPORAL_NAMESPACE`: Temporal namespace (default: default)
 - `TEMPORAL_TASK_QUEUE`: Task queue name (default: test-task-queue)
 - `TEMPORAL_API_KEY`: API key for Temporal Cloud authentication
+- `AZURE_SUBSCRIPTION_ID`: Azure subscription ID
+- `ACR_NAME`: Azure Container Registry name
+- `RESOURCE_GROUP`: Azure resource group name
+- `KUBERNETES_NAMESPACE`: Kubernetes namespace for deployment
+
+For complete configuration details, see [CONFIGURATION.md](CONFIGURATION.md).
 
 ## Local Development
 
@@ -54,11 +65,9 @@ The application uses environment variables for configuration:
 # Install dependencies
 pip install temporalio
 
-# Set environment variables
-export TEMPORAL_ADDRESS="localhost:7233"
-export TEMPORAL_NAMESPACE="default"
-export TEMPORAL_TASK_QUEUE="test-task-queue"
-export TEMPORAL_API_KEY="your-api-key"
+# Copy and configure the environment file
+cp config.env.example config.env
+# Edit config.env with your actual values
 
 # Run the worker
 python worker.py
@@ -74,7 +83,7 @@ python worker.py
 ### Deploy
 ```bash
 # Make scripts executable
-chmod +x deploy.sh validate.sh
+chmod +x deploy.sh validate.sh generate-k8s-manifests.sh source_config.sh
 
 # Deploy to Kubernetes
 ./deploy.sh
@@ -84,24 +93,23 @@ chmod +x deploy.sh validate.sh
 ```
 
 ### Configuration
-Update the following files for your environment:
-- `config-map.yaml`: Temporal connection settings
-- `deployment.yaml`: Image name, namespace, and resource requirements
+The deployment automatically generates Kubernetes manifests from your `config.env` file. Update the configuration in `config.env` and regenerate manifests:
+
+```bash
+./generate-k8s-manifests.sh
+```
 
 ## Docker
 
 ### Build
 ```bash
-docker build -t your-temporal-worker .
+docker build -t demo-temporal-worker .
 ```
 
 ### Run
 ```bash
-docker run -e TEMPORAL_ADDRESS=your-address \
-           -e TEMPORAL_NAMESPACE=your-namespace \
-           -e TEMPORAL_TASK_QUEUE=your-queue \
-           -e TEMPORAL_API_KEY=your-key \
-           your-temporal-worker
+# The container will automatically use the configuration from config.env
+docker run demo-temporal-worker
 ```
 
 ## Resource Requirements
@@ -110,4 +118,4 @@ The Kubernetes deployment is configured with:
 - **Requests**: 0.2 CPU, 256Mi memory
 - **Limits**: 0.5 CPU, 512Mi memory
 
-Adjust these values in `deployment.yaml` based on your workload requirements.
+These values can be adjusted in `config.env` under the Resource Limits section.

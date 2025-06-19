@@ -6,20 +6,24 @@ from temporalio.client import Client
 
 from workflows import your_workflow
 from activities import your_first_activity, your_second_activity, your_third_activity
-
-TEMPORAL_ADDRESS = os.environ.get("TEMPORAL_ADDRESS", "localhost:7233")
-TEMPORAL_NAMESPACE = os.environ.get("TEMPORAL_NAMESPACE", "default")
-TEMPORAL_TASK_QUEUE = os.environ.get("TEMPORAL_TASK_QUEUE", "test-task-queue")
-TEMPORAL_API_KEY = os.environ.get("TEMPORAL_API_KEY", "your-api-key")
+from config import TEMPORAL_ADDRESS, TEMPORAL_NAMESPACE, TEMPORAL_TASK_QUEUE, TEMPORAL_API_KEY
 
 async def main():
-    client = await Client.connect(
-        TEMPORAL_ADDRESS,
-        namespace=TEMPORAL_NAMESPACE,
-        rpc_metadata={"temporal-namespace": TEMPORAL_NAMESPACE},
-        api_key=TEMPORAL_API_KEY,
-        tls=True
-    )
+    # For local development, connect without TLS or API key
+    if TEMPORAL_ADDRESS.startswith("localhost") or "host.docker.internal" in TEMPORAL_ADDRESS:
+        client = await Client.connect(
+            TEMPORAL_ADDRESS,
+            namespace=TEMPORAL_NAMESPACE
+        )
+    else:
+        # For Temporal Cloud, use TLS and API key
+        client = await Client.connect(
+            TEMPORAL_ADDRESS,
+            namespace=TEMPORAL_NAMESPACE,
+            rpc_metadata={"temporal-namespace": TEMPORAL_NAMESPACE},
+            api_key=TEMPORAL_API_KEY,
+            tls=True
+        )
     
     print("Initializing worker...")
     # Initialize the worker
