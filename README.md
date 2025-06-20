@@ -63,7 +63,12 @@ For complete configuration details, see [CONFIGURATION.md](CONFIGURATION.md).
 ### Setup
 ```bash
 # Install dependencies
-pip install temporalio
+pip install config temporalio
+
+# Alternative with venv
+python3 -m venv .
+source bin/activate
+python3 -m pip install config temporalio
 
 # Copy and configure the environment file
 cp config.env.example config.env
