@@ -8,21 +8,6 @@ This project implements a Temporal worker that processes workflows and activitie
 
 ## Project Structure
 
-```
-├── activities.py      # Temporal activity definitions
-├── worker.py         # Main worker application
-├── workflows.py      # Temporal workflow definitions
-├── config.py         # Configuration management module
-├── config.env        # Centralized configuration file
-├── source_config.sh  # Script to source configuration
-├── Dockerfile        # Container build configuration
-├── deployment.yaml   # Kubernetes deployment manifest
-├── config-map.yaml   # ConfigMap for environment variables
-├── deploy.sh         # Deployment script
-├── validate.sh       # Validation script
-└── generate-k8s-manifests.sh # K8s manifest generator
-```
-
 ## Components
 
 ### Activities (`activities.py`)
@@ -81,7 +66,7 @@ python worker.py
 ## Kubernetes Deployment
 
 ### Prerequisites
-- Azure Kubernetes Service cluster
+- k8s cluster
 - kubectl configured for your cluster
 - Docker registry access
 
@@ -104,7 +89,7 @@ The deployment automatically generates Kubernetes manifests from your `config.en
 ./generate-k8s-manifests.sh
 ```
 
-## Docker
+## Docker Deployment
 
 ### Build
 ```bash
