@@ -15,10 +15,11 @@ spec:
          labels:
             app: demo-app
       spec:
-         serviceAccountName: demo-app
+         imagePullSecrets:
+         - name: acr-secret
          containers:
             - name: demo-app
-              image: demo-app:latest
+              image: womackecr.azurecr.io/demo-app:latest
               env:
                 - name: TEMPORAL_ADDRESS
                   valueFrom:
