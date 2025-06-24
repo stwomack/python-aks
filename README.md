@@ -1,111 +1,415 @@
-# Python Temporal Worker on Azure Kubernetes Service (AKS)
+# **Technical Guide**
 
-A Python application that runs Temporal workflows and activities, designed for deployment on Azure Kubernetes Service.
+## **Deploying Temporal Workers on Azure Kubernetes Service (AKS)**
 
-## Overview
+### **Overview**
 
-This project implements a Temporal worker that processes workflows and activities using the Temporal Python SDK. The application is containerized with Docker and configured for deployment on Kubernetes with proper configuration management and resource limits.
+Running Temporal Workers in Azure Kubernetes Service (AKS) delivers scalable, resilient, and efficiently managed distributed services. AKS stands out as a leading platform for hosting Temporal workers, offering tight integration with Azure's ecosystem and built-in auto-scaling capabilities with fault tolerance—critical features for enterprise Temporal deployments.
 
-## Project Structure
+This guide covers the process of deploying and operating Temporal Workers on AKS. The instructions apply to both Temporal self-hosted installations and Temporal Cloud environments.
 
-## Components
+### **Prerequisites**
 
-### Activities (`activities.py`)
-- `your_first_activity`: Basic greeting activity
-- `your_second_activity`: Data processing activity  
-- `your_third_activity`: Final result processing activity
+Before deploying Workers to AKS, ensure you have:
 
-### Workflows (`workflows.py`)
-- `YourWorkflow`: Main workflow that orchestrates activity execution
+* Microsoft Azure subscription  
+* Provisioned AKS cluster in your Azure subscription  
+* Azure CLI installed and configured  
+* Docker runtime environment  
+* kubectl CLI tool configured for your AKS cluster
 
-### Worker (`worker.py`)
-- Connects to Temporal server
-- Registers workflows and activities
-- Processes tasks from the configured task queue
+### **Project Structure**
 
-## Configuration
+This project includes a complete automation system for deploying Temporal workers to AKS:
+
+```
+python-aks/
+├── activities.py              # Temporal activities implementation
+├── workflows.py               # Temporal workflows definition
+├── worker.py                  # Temporal worker implementation
+├── client.py                  # Temporal client for triggering workflows
+├── config.py                  # Configuration management module
+├── config.env                 # Centralized configuration file
+├── config.env.example         # Example configuration template
+├── source_config.sh           # Script to load configuration
+├── generate-k8s-manifests.sh  # Generate K8s manifests from config
+├── deploy.sh                  # Complete deployment automation
+├── patch.sh                   # Quick patch script
+├── start.sh                   # Local development startup
+├── create-secret.sh           # Create K8s secrets
+├── Dockerfile                 # Container configuration
+├── deployment.yaml            # Generated K8s deployment
+├── config-map.yaml            # Generated K8s config map
+├── acr-secret.yaml            # Generated ACR authentication secret
+└── CONFIGURATION.md           # Detailed configuration documentation
+```
+
+### **Getting Started**
+
+This walkthrough demonstrates writing Temporal Worker code, containerizing and publishing the Worker to Azure Container Registry (ACR), then deploying to AKS. Our example leverages Temporal's Python SDK with a complete automation system.
+
+### **Configuration Management**
 
 This project uses a centralized configuration system. All environment variables are managed in `config.env`:
 
-### Key Configuration Variables
+#### **Key Configuration Variables**
+- `AZURE_SUBSCRIPTION_ID`: Your Azure subscription ID
+- `ACR_NAME`: Azure Container Registry name
+- `RESOURCE_GROUP`: Azure resource group name
+- `ACR_USERNAME`: ACR username for authentication
+- `ACR_PASSWORD`: ACR password for authentication
+- `ACR_EMAIL`: Email for ACR authentication
 - `TEMPORAL_ADDRESS`: Temporal server address (default: localhost:7233)
 - `TEMPORAL_NAMESPACE`: Temporal namespace (default: default)
 - `TEMPORAL_TASK_QUEUE`: Task queue name (default: test-task-queue)
 - `TEMPORAL_API_KEY`: API key for Temporal Cloud authentication
-- `AZURE_SUBSCRIPTION_ID`: Azure subscription ID
-- `ACR_NAME`: Azure Container Registry name
-- `RESOURCE_GROUP`: Azure resource group name
 - `KUBERNETES_NAMESPACE`: Kubernetes namespace for deployment
+- `APP_NAME`: Application name for deployment
+- `APP_IMAGE`: Full image name including ACR path
+- `CPU_LIMIT/MEMORY_LIMIT`: Resource limits
+- `CPU_REQUEST/MEMORY_REQUEST`: Resource requests
 
-For complete configuration details, see [CONFIGURATION.md](CONFIGURATION.md).
-
-## Local Development
-
-### Prerequisites
-- Python 3.11+
-- Temporal server running locally or Temporal Cloud access
-
-### Setup
+#### **Setup Configuration**
 ```bash
-# Install dependencies
-pip install config temporalio
+# Copy the example configuration
+cp config.env.example config.env
 
-# Alternative with venv
-python3 -m venv .
-source bin/activate
-python3 -m pip install config temporalio
+# Edit with your actual values
+nano config.env
+```
 
+### **Writing Worker Implementation**
+
+Temporal applications separate business logic into Workflow definitions while Worker processes handle execution of Workflows and Activities.
+
+#### **Activities (`activities.py`)**
+```python
+from temporalio import activity
+
+@activity.defn
+async def your_first_activity(name: str) -> str:
+    return f"Hello, {name}!"
+
+@activity.defn
+async def your_second_activity(data: str) -> str:
+    return f"Processed: {data}"
+
+@activity.defn
+async def your_third_activity(result: str) -> str:
+    return f"Final result: {result}"
+```
+
+#### **Workflows (`workflows.py`)**
+```python
+from datetime import timedelta
+from temporalio import workflow
+
+@workflow.defn
+class YourWorkflow:
+    @workflow.run
+    async def run(self, name: str) -> str:
+        return await workflow.execute_activity(
+            your_first_activity,
+            name,
+            start_to_close_timeout=timedelta(seconds=10),
+        )
+
+your_workflow = YourWorkflow
+```
+
+#### **Worker (`worker.py`)**
+The worker uses the centralized configuration system:
+
+```python
+import asyncio
+import os
+
+from temporalio.worker import Worker
+from temporalio.client import Client
+
+from workflows import your_workflow
+from activities import your_first_activity, your_second_activity, your_third_activity
+from config import TEMPORAL_ADDRESS, TEMPORAL_NAMESPACE, TEMPORAL_TASK_QUEUE, TEMPORAL_API_KEY
+
+async def main():
+    # For local development, connect without TLS or API key
+    if TEMPORAL_ADDRESS.startswith("localhost") or "host.docker.internal" in TEMPORAL_ADDRESS:
+        client = await Client.connect(
+            TEMPORAL_ADDRESS,
+            namespace=TEMPORAL_NAMESPACE
+        )
+    else:
+        # For Temporal Cloud, use TLS and API key
+        client = await Client.connect(
+            TEMPORAL_ADDRESS,
+            namespace=TEMPORAL_NAMESPACE,
+            rpc_metadata={"temporal-namespace": TEMPORAL_NAMESPACE},
+            api_key=TEMPORAL_API_KEY,
+            tls=True
+        )
+    
+    print("Initializing worker...")
+    worker = Worker(
+        client,
+        task_queue=TEMPORAL_TASK_QUEUE,
+        workflows=[your_workflow],
+        activities=[
+            your_first_activity,
+            your_second_activity,
+            your_third_activity
+        ]
+    )
+
+    print("Starting worker... Awaiting tasks.")
+    await worker.run()
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+
+#### **Client (`client.py`)**
+A client application that triggers workflows:
+
+```python
+import asyncio
+import datetime
+import logging
+from temporalio.client import Client, WorkflowHandle
+
+from workflows import your_workflow
+from config import TEMPORAL_ADDRESS, TEMPORAL_NAMESPACE, TEMPORAL_TASK_QUEUE, TEMPORAL_API_KEY
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+async def main():
+    try:
+        logging.info("Connecting to Temporal server...")
+        
+        # For local development, connect without TLS or API key
+        if TEMPORAL_ADDRESS.startswith("localhost") or "host.docker.internal" in TEMPORAL_ADDRESS:
+            client = await Client.connect(
+                TEMPORAL_ADDRESS,
+                namespace=TEMPORAL_NAMESPACE
+            )
+        else:
+            # For Temporal Cloud, use TLS and API key
+            client = await Client.connect(
+                TEMPORAL_ADDRESS,
+                namespace=TEMPORAL_NAMESPACE,
+                rpc_metadata={"temporal-namespace": TEMPORAL_NAMESPACE},
+                api_key=TEMPORAL_API_KEY,
+                tls=True
+            )
+            
+        logging.info(f"Successfully connected to Temporal server at {TEMPORAL_ADDRESS} in namespace {TEMPORAL_NAMESPACE}.")
+    except Exception as e:
+        logging.error(f"Failed to connect to Temporal server: {e}")
+        return
+
+    workflow_counter = 0
+    while True:
+        workflow_counter += 1
+        workflow_id = f"your-workflow-{workflow_counter}-{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}"
+        workflow_arg = f"ClientTriggeredPayload-{workflow_counter}"
+
+        try:
+            logging.info(f"Starting workflow with ID: {workflow_id} and argument: {workflow_arg}...")
+            result_handle: WorkflowHandle[str] = await client.start_workflow(
+                your_workflow.run,
+                workflow_arg,
+                id=workflow_id,
+                task_queue=TEMPORAL_TASK_QUEUE,
+            )
+            logging.info(f"Workflow {workflow_id} started. Run ID: {result_handle.result_run_id}")
+
+        except Exception as e:
+            logging.error(f"Failed to start workflow {workflow_id}: {e}")
+
+        logging.info("Waiting 10 seconds before next workflow execution...")
+        await asyncio.sleep(10)
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+
+### **Container Preparation for Kubernetes**
+
+Containerization is required for Kubernetes deployment. The project includes a Dockerfile:
+
+```dockerfile
+# Use Python 3.11 slim image as base
+FROM python:3.11-slim
+
+# Set working directory
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    gcc \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Temporal Python SDK
+RUN pip install --no-cache-dir temporalio
+
+# Copy application code
+COPY . .
+
+# Configure Python for unbuffered output
+ENV PYTHONUNBUFFERED=1
+
+# Execute the worker
+CMD ["python", "worker.py"]
+```
+
+### **Automated Deployment Process**
+
+This project includes a complete automation system for deploying to AKS:
+
+#### **1. Configuration Setup**
+```bash
 # Copy and configure the environment file
 cp config.env.example config.env
 # Edit config.env with your actual values
-
-# Run the worker
-python worker.py
 ```
 
-## Kubernetes Deployment
-
-### Prerequisites
-- k8s cluster
-- kubectl configured for your cluster
-- Docker registry access
-
-### Deploy
+#### **2. Deploy to AKS**
 ```bash
 # Make scripts executable
-chmod +x deploy.sh validate.sh generate-k8s-manifests.sh source_config.sh
+chmod +x deploy.sh generate-k8s-manifests.sh source_config.sh
 
-# Deploy to Kubernetes
+# Run the complete deployment
 ./deploy.sh
-
-# Validate deployment
-./validate.sh
 ```
 
-### Configuration
-The deployment automatically generates Kubernetes manifests from your `config.env` file. Update the configuration in `config.env` and regenerate manifests:
+The `deploy.sh` script automates:
+- Building Docker image for multiple architectures (linux/amd64, linux/arm64)
+- Logging into Azure Container Registry
+- Tagging and pushing the image to ACR
+- Creating Kubernetes namespace
+- Generating Kubernetes manifests from configuration
+- Applying secrets and config maps
+- Deploying the application to AKS
 
+#### **3. Manual Deployment Steps (if needed)**
+
+If you prefer manual deployment, the automation scripts can be run individually:
+
+**Generate Kubernetes Manifests:**
 ```bash
 ./generate-k8s-manifests.sh
 ```
 
-## Docker Deployment
+This script generates:
+- `acr-secret.yaml` - ACR authentication secret
+- `config-map.yaml` - Temporal configuration
+- `deployment.yaml` - Application deployment
 
-### Build
+**Apply Manifests:**
 ```bash
-docker build -t demo-temporal-worker .
+# Source the configuration
+source ./source_config.sh
+
+# Create namespace
+kubectl create namespace $KUBERNETES_NAMESPACE --dry-run=client -o yaml | kubectl apply -f -
+
+# Apply secrets and config
+kubectl apply -f acr-secret.yaml --namespace $KUBERNETES_NAMESPACE
+kubectl apply -f config-map.yaml --namespace $KUBERNETES_NAMESPACE
+
+# Deploy the application
+kubectl apply -f deployment.yaml --namespace $KUBERNETES_NAMESPACE
 ```
 
-### Run
+### **Local Development**
+
+For local development and testing:
+
+#### **Prerequisites**
+- Python 3.11+
+- Temporal server running locally or Temporal Cloud access
+
+#### **Setup**
 ```bash
-# The container will automatically use the configuration from config.env
-docker run demo-temporal-worker
+# Install dependencies
+pip install temporalio
+
+# Copy and configure the environment file
+cp config.env.example config.env
+# Edit config.env for local development
+
+# Run the worker
+python worker.py
+
+# In another terminal, run the client
+python client.py
 ```
 
-## Resource Requirements
+#### **Quick Start Script**
+```bash
+# Use the provided start script
+./start.sh
+```
+
+### **Validating Worker Connectivity**
+
+Post-deployment, verify Workers have established connection to Temporal:
+
+```bash
+# Check pod status
+kubectl get pods -n $KUBERNETES_NAMESPACE
+
+# Examine Worker logs
+kubectl logs <pod-name> -n $KUBERNETES_NAMESPACE
+```
+
+Successful connection displays:
+```
+Initializing worker...
+Starting worker... Awaiting tasks.
+```
+
+### **Resource Requirements**
 
 The Kubernetes deployment is configured with:
 - **Requests**: 0.2 CPU, 256Mi memory
 - **Limits**: 0.5 CPU, 512Mi memory
 
 These values can be adjusted in `config.env` under the Resource Limits section.
+
+### **Configuration Management Details**
+
+For complete configuration details, see [CONFIGURATION.md](CONFIGURATION.md).
+
+The configuration system supports:
+- Environment variable priority (system env > config.env > defaults)
+- Validation of required variables
+- Automatic manifest generation
+- Support for both local development and production deployments
+
+### **Troubleshooting**
+
+#### **Common Issues**
+
+1. **Configuration Errors**: Ensure all required variables are set in `config.env`
+2. **ACR Authentication**: Verify ACR credentials in the configuration
+3. **Temporal Connection**: Check Temporal server address and API key
+4. **Resource Limits**: Adjust CPU/memory limits if pods fail to start
+
+#### **Useful Commands**
+
+```bash
+# Check configuration
+source ./source_config.sh
+
+# View generated manifests
+cat deployment.yaml
+cat config-map.yaml
+
+# Check pod logs
+kubectl logs -f deployment/$APP_NAME -n $KUBERNETES_NAMESPACE
+
+# Restart deployment
+kubectl rollout restart deployment/$APP_NAME -n $KUBERNETES_NAMESPACE
+```
+
+Your Temporal Worker is now operational on AKS with a complete automation system for deployment and configuration management. The project provides a production-ready foundation for running Temporal workflows in Kubernetes with proper resource management, configuration handling, and deployment automation.
