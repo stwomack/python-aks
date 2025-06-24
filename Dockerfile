@@ -10,13 +10,17 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Temporal Python SDK
-RUN pip install --no-cache-dir temporalio
+RUN pip install --no-cache-dir temporalio requests
 
 # Copy application code
-COPY . .
+COPY *.py /app/
+COPY start.sh /app/start.sh
 
 # Configure Python for unbuffered output
 ENV PYTHONUNBUFFERED=1
 
-# Execute the worker
-CMD ["python", "worker.py"]
+# Ensure the script is executable
+RUN chmod +x /app/start.sh
+
+# Use the script to start both processes
+CMD ["bash", "/app/start.sh"]

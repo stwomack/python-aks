@@ -2,7 +2,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: temporal-worker-config
-  namespace: your-namespace
+  namespace: default
 data:
   TEMPORAL_ADDRESS: "localhost:7233"
   TEMPORAL_NAMESPACE: "default"

@@ -3,11 +3,11 @@
 # Source the centralized configuration
 source ./source_config.sh
 
-echo "Building Docker image for linux/amd64..."
-docker buildx build --platform linux/amd64 -t $APP_NAME .
+echo "Building Docker image for linux/amd64 and linux/arm64"
+docker buildx build --platform linux/amd64,linux/arm64 -t $APP_NAME .
 
 echo "Creating ACR instance..."
-az acr create --resource-group $RESOURCE_GROUP --name $ACR_NAME --sku Basic
+#az acr create --resource-group $RESOURCE_GROUP --name $ACR_NAME --sku Basic
 
 echo "Logging into ACR..."
 az acr login --name $ACR_NAME
@@ -28,8 +28,11 @@ apply -f acr-secret.yaml --namespace $KUBERNETES_NAMESPACE
 echo "Applying ConfigMap..."
 kubectl apply -f config-map.yaml --namespace $KUBERNETES_NAMESPACE
 
+echo "Deleting Deployment..."
+kubectl delete deployment demo-app
+
 echo "Deploying to AKS..."
-kubectl apply -f deployment.yaml --namespace $KUBERNETES_NAMESPACE
+kubectl apply -f deployment.yaml --namespace $KUBERNETES_NAMESPACE --force
 
 echo "Deployment complete! Checking pod status..."
 kubectl get pods -n $KUBERNETES_NAMESPACE
