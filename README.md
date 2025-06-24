@@ -464,6 +464,21 @@ az keyvault secret set --vault-name <your-keyvault-name> --name temporal-encrypt
 - `keyvault.py`: Fetches the encryption key from Azure Key Vault.
 - `crypto_converter.py`: Implements a custom `PayloadConverter` using AES-GCM.
 
+**Note:** If you review or extend `crypto_converter.py`, be sure to use:
+```python
+from temporalio.converter import PayloadConverter, DataConverter, DefaultPayloadConverter
+# ...
+class EncryptedPayloadConverter(PayloadConverter):
+    # ...
+    def to_payloads(self, values):
+        return [self.to_payload(value) for value in values]
+    def from_payloads(self, payloads):
+        return [self.from_payload(payload) for payload in payloads]
+# ...
+self._underlying = DefaultPayloadConverter()
+```
+These methods are required by the Temporal Python SDK interface.
+
 ### Using the Encrypted Payload Converter
 
 To enable encryption, update your `worker.py` and `client.py` to use the custom converter.  
