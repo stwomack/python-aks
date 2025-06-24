@@ -4,6 +4,6 @@ metadata:
   name: temporal-worker-config
   namespace: default
 data:
-  TEMPORAL_ADDRESS: "localhost:7233"
+  TEMPORAL_ADDRESS: "host.docker.internal:7233"
   TEMPORAL_NAMESPACE: "default"
   TEMPORAL_TASK_QUEUE: "test-task-queue"

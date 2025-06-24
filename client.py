@@ -3,15 +3,32 @@ import datetime
 import logging
 from temporalio.client import Client, WorkflowHandle
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+from workflows import your_workflow
+from config import TEMPORAL_ADDRESS, TEMPORAL_NAMESPACE, TEMPORAL_TASK_QUEUE, TEMPORAL_API_KEY
 
-from workflows import YourWorkflow
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 async def main():
     try:
         logging.info("Connecting to Temporal server...")
-        client = await Client.connect("localhost:7233")
-        logging.info("Successfully connected to Temporal server.")
+        
+        # For local development, connect without TLS or API key
+        if TEMPORAL_ADDRESS.startswith("localhost") or "host.docker.internal" in TEMPORAL_ADDRESS:
+            client = await Client.connect(
+                TEMPORAL_ADDRESS,
+                namespace=TEMPORAL_NAMESPACE
+            )
+        else:
+            # For Temporal Cloud, use TLS and API key
+            client = await Client.connect(
+                TEMPORAL_ADDRESS,
+                namespace=TEMPORAL_NAMESPACE,
+                rpc_metadata={"temporal-namespace": TEMPORAL_NAMESPACE},
+                api_key=TEMPORAL_API_KEY,
+                tls=True
+            )
+            
+        logging.info(f"Successfully connected to Temporal server at {TEMPORAL_ADDRESS} in namespace {TEMPORAL_NAMESPACE}.")
     except Exception as e:
         logging.error(f"Failed to connect to Temporal server: {e}")
         return
@@ -25,10 +42,10 @@ async def main():
         try:
             logging.info(f"Starting workflow with ID: {workflow_id} and argument: {workflow_arg}...")
             result_handle: WorkflowHandle[str] = await client.start_workflow(
-                YourWorkflow.run,
+                your_workflow.run,
                 workflow_arg,
                 id=workflow_id,
-                task_queue="my-task-queue",
+                task_queue=TEMPORAL_TASK_QUEUE,
             )
             logging.info(f"Workflow {workflow_id} started. Run ID: {result_handle.result_run_id}")
 
