@@ -4,7 +4,7 @@ import logging
 from temporalio.client import Client, WorkflowHandle
 
 from workflows import your_workflow
-from config import TEMPORAL_ADDRESS, TEMPORAL_NAMESPACE, TEMPORAL_TASK_QUEUE, TEMPORAL_API_KEY
+from config import TEMPORAL_ADDRESS, TEMPORAL_NAMESPACE, TEMPORAL_TASK_QUEUE, TEMPORAL_API_KEY, KEYVAULT_URL, KEYVAULT_SECRET_NAME
 from crypto_converter import encrypted_converter
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')

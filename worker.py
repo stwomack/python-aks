@@ -6,7 +6,7 @@ from temporalio.client import Client
 
 from workflows import your_workflow
 from activities import your_first_activity, your_second_activity, your_third_activity
-from config import TEMPORAL_ADDRESS, TEMPORAL_NAMESPACE, TEMPORAL_TASK_QUEUE, TEMPORAL_API_KEY
+from config import TEMPORAL_ADDRESS, TEMPORAL_NAMESPACE, TEMPORAL_TASK_QUEUE, TEMPORAL_API_KEY, KEYVAULT_URL, KEYVAULT_SECRET_NAME
 from crypto_converter import encrypted_converter
 
 async def main():

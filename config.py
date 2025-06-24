@@ -54,5 +54,5 @@ TEMPORAL_ADDRESS = get_env_var("TEMPORAL_ADDRESS", "localhost:7233")
 TEMPORAL_NAMESPACE = get_env_var("TEMPORAL_NAMESPACE", "default")
 TEMPORAL_TASK_QUEUE = get_env_var("TEMPORAL_TASK_QUEUE", "test-task-queue")
 TEMPORAL_API_KEY = get_env_var("TEMPORAL_API_KEY", "demo-api-key")
-KEYVAULT_URL = os.environ["KEYVAULT_URL"]
-KEYVAULT_SECRET_NAME = os.environ["KEYVAULT_SECRET_NAME"]
+KEYVAULT_URL = get_env_var("KEYVAULT_URL")
+KEYVAULT_SECRET_NAME = get_env_var("KEYVAULT_SECRET_NAME")

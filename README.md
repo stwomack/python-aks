@@ -128,14 +128,16 @@ from temporalio.client import Client
 
 from workflows import your_workflow
 from activities import your_first_activity, your_second_activity, your_third_activity
-from config import TEMPORAL_ADDRESS, TEMPORAL_NAMESPACE, TEMPORAL_TASK_QUEUE, TEMPORAL_API_KEY
+from config import TEMPORAL_ADDRESS, TEMPORAL_NAMESPACE, TEMPORAL_TASK_QUEUE, TEMPORAL_API_KEY, KEYVAULT_URL, KEYVAULT_SECRET_NAME
+from crypto_converter import encrypted_converter
 
 async def main():
     # For local development, connect without TLS or API key
     if TEMPORAL_ADDRESS.startswith("localhost") or "host.docker.internal" in TEMPORAL_ADDRESS:
         client = await Client.connect(
             TEMPORAL_ADDRESS,
-            namespace=TEMPORAL_NAMESPACE
+            namespace=TEMPORAL_NAMESPACE,
+            data_converter=encrypted_converter
         )
     else:
         # For Temporal Cloud, use TLS and API key
@@ -144,7 +146,8 @@ async def main():
             namespace=TEMPORAL_NAMESPACE,
             rpc_metadata={"temporal-namespace": TEMPORAL_NAMESPACE},
             api_key=TEMPORAL_API_KEY,
-            tls=True
+            tls=True,
+            data_converter=encrypted_converter
         )
     
     print("Initializing worker...")
@@ -176,7 +179,8 @@ import logging
 from temporalio.client import Client, WorkflowHandle
 
 from workflows import your_workflow
-from config import TEMPORAL_ADDRESS, TEMPORAL_NAMESPACE, TEMPORAL_TASK_QUEUE, TEMPORAL_API_KEY
+from config import TEMPORAL_ADDRESS, TEMPORAL_NAMESPACE, TEMPORAL_TASK_QUEUE, TEMPORAL_API_KEY, KEYVAULT_URL, KEYVAULT_SECRET_NAME
+from crypto_converter import encrypted_converter
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -188,7 +192,8 @@ async def main():
         if TEMPORAL_ADDRESS.startswith("localhost") or "host.docker.internal" in TEMPORAL_ADDRESS:
             client = await Client.connect(
                 TEMPORAL_ADDRESS,
-                namespace=TEMPORAL_NAMESPACE
+                namespace=TEMPORAL_NAMESPACE,
+                data_converter=encrypted_converter
             )
         else:
             # For Temporal Cloud, use TLS and API key
@@ -197,7 +202,8 @@ async def main():
                 namespace=TEMPORAL_NAMESPACE,
                 rpc_metadata={"temporal-namespace": TEMPORAL_NAMESPACE},
                 api_key=TEMPORAL_API_KEY,
-                tls=True
+                tls=True,
+                data_converter=encrypted_converter
             )
             
         logging.info(f"Successfully connected to Temporal server at {TEMPORAL_ADDRESS} in namespace {TEMPORAL_NAMESPACE}.")
@@ -340,18 +346,24 @@ pip install temporalio
 cp config.env.example config.env
 # Edit config.env for local development
 
-# Run the worker
-python worker.py
+# IMPORTANT: Always source your config before running Python!
+# This ensures KEYVAULT_URL, KEYVAULT_SECRET_NAME, and all other variables are set.
+source ./source_config.sh
 
-# In another terminal, run the client
+# Run the worker
+python worker.py &
+
+# In another terminal (with config sourced), run the client
 python client.py
 ```
 
 #### **Quick Start Script**
 ```bash
-# Use the provided start script
+# Use the provided start script (this will source all config for you)
 ./start.sh
 ```
+
+> **Note:** If you run `python worker.py` or `python client.py` directly, without first sourcing `./source_config.sh` or using `./start.sh`, required environment variables (like `KEYVAULT_URL`) will NOT be set and you will get a KeyError. Always use `./start.sh` or manually source the config before running Python scripts.
 
 ### **Validating Worker Connectivity**
 
@@ -492,6 +504,7 @@ To enable encryption, update your `worker.py` and `client.py` to use the custom 
 #### worker.py (with encryption)
 
 ```python
+from config import TEMPORAL_ADDRESS, TEMPORAL_NAMESPACE, TEMPORAL_TASK_QUEUE, TEMPORAL_API_KEY, KEYVAULT_URL, KEYVAULT_SECRET_NAME
 from crypto_converter import encrypted_converter
 # ... other imports ...
 
@@ -519,6 +532,7 @@ async def main():
 #### client.py (with encryption)
 
 ```python
+from config import TEMPORAL_ADDRESS, TEMPORAL_NAMESPACE, TEMPORAL_TASK_QUEUE, TEMPORAL_API_KEY, KEYVAULT_URL, KEYVAULT_SECRET_NAME
 from crypto_converter import encrypted_converter
 # ... other imports ...
 
