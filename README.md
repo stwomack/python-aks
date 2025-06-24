@@ -58,7 +58,7 @@ This project uses a centralized configuration system. All environment variables 
 - `ACR_USERNAME`: ACR username for authentication
 - `ACR_PASSWORD`: ACR password for authentication
 - `ACR_EMAIL`: Email for ACR authentication
-- `TEMPORAL_ADDRESS`: Temporal server address (default: localhost:7233)
+- `TEMPORAL_ADDRESS`: Temporal server address (default: localhost:7233) (for KIND k8s clusters on localhost, set to host.docker.internal:7233)
 - `TEMPORAL_NAMESPACE`: Temporal namespace (default: default)
 - `TEMPORAL_TASK_QUEUE`: Task queue name (default: test-task-queue)
 - `TEMPORAL_API_KEY`: API key for Temporal Cloud authentication
@@ -293,7 +293,7 @@ The `deploy.sh` script automates:
 - Applying secrets and config maps
 - Deploying the application to AKS
 
-#### **3. OPTIONAL: Manual Deployment Steps (if so inclined, if nots, skip to Local Development topic)**
+#### **3. OPTIONAL: Manual Deployment Steps (if so inclined, if not, skip to Local Development topic)**
 
 If you prefer manual deployment, the automation scripts can be run individually:
 
