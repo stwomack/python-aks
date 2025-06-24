@@ -105,15 +105,17 @@ MEMORY_REQUEST=256Mi
 This project supports encrypting all Temporal workflow/activity payloads using a symmetric key stored in Azure Key Vault. The key is fetched at runtime and used for AES-GCM encryption/decryption via a custom PayloadConverter.
 
 ### Required Configuration
-Add the following to your `config.env`:
+Add the following to your `config.env` (these must be set for encryption to work):
 
 ```
 KEYVAULT_URL=https://your-keyvault-name.vault.azure.net/
 KEYVAULT_SECRET_NAME=temporal-encryption-key
 ```
 
-- `KEYVAULT_URL`: The full URL of your Azure Key Vault instance.
-- `KEYVAULT_SECRET_NAME`: The name of the secret in Key Vault containing your base64-encoded AES key (128, 192, or 256 bits).
+- `KEYVAULT_URL`: The full URL of your Azure Key Vault instance. **Required for encryption.**
+- `KEYVAULT_SECRET_NAME`: The name of the secret in Key Vault containing your base64-encoded AES key (128, 192, or 256 bits). **Required for encryption.**
+
+These must be set as environment variables or in your `config.env` file. There are no defaults or fallbacks for these values.
 
 ### Setting up the Key in Azure Key Vault
 1. Generate a random 256-bit key (recommended):

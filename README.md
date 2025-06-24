@@ -437,12 +437,17 @@ pip install azure-identity azure-keyvault-secrets cryptography
 
 #### 2. Add Key Vault Configuration
 
-Add these to your `config.env` (see `config.env.example`):
+Add these to your `config.env` (see `config.env.example`). These must be set for encryption to work:
 
 ```
 KEYVAULT_URL=https://your-keyvault-name.vault.azure.net/
 KEYVAULT_SECRET_NAME=temporal-encryption-key
 ```
+
+- `KEYVAULT_URL`: The full URL of your Azure Key Vault instance. **Required for encryption.**
+- `KEYVAULT_SECRET_NAME`: The name of the secret in Key Vault containing your base64-encoded AES key (128, 192, or 256 bits). **Required for encryption.**
+
+These must be set as environment variables or in your `config.env` file. There are no defaults or fallbacks for these values.
 
 #### 3. Provision the Key in Azure Key Vault
 
