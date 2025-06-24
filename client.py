@@ -5,6 +5,7 @@ from temporalio.client import Client, WorkflowHandle
 
 from workflows import your_workflow
 from config import TEMPORAL_ADDRESS, TEMPORAL_NAMESPACE, TEMPORAL_TASK_QUEUE, TEMPORAL_API_KEY
+from crypto_converter import encrypted_converter
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -16,7 +17,8 @@ async def main():
         if TEMPORAL_ADDRESS.startswith("localhost") or "host.docker.internal" in TEMPORAL_ADDRESS:
             client = await Client.connect(
                 TEMPORAL_ADDRESS,
-                namespace=TEMPORAL_NAMESPACE
+                namespace=TEMPORAL_NAMESPACE,
+                data_converter=encrypted_converter
             )
         else:
             # For Temporal Cloud, use TLS and API key
@@ -25,7 +27,8 @@ async def main():
                 namespace=TEMPORAL_NAMESPACE,
                 rpc_metadata={"temporal-namespace": TEMPORAL_NAMESPACE},
                 api_key=TEMPORAL_API_KEY,
-                tls=True
+                tls=True,
+                data_converter=encrypted_converter
             )
             
         logging.info(f"Successfully connected to Temporal server at {TEMPORAL_ADDRESS} in namespace {TEMPORAL_NAMESPACE}.")

@@ -6,7 +6,7 @@ source ./source_config.sh
 echo "Building Docker image for linux/amd64 and linux/arm64"
 docker buildx build --platform linux/amd64,linux/arm64 -t $APP_NAME .
 
-echo "Creating ACR instance..."
+# echo "Creating ACR instance..."
 #az acr create --resource-group $RESOURCE_GROUP --name $ACR_NAME --sku Basic
 # Note: Depending on your config, you may need to enable-admin for your ACR account `az acr update -n womackecr --admin-enabled true`
 # If this step is re-run, you'd need to run the admin enable command again, which is why it's commented out here.

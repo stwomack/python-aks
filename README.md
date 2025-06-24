@@ -416,3 +416,125 @@ kubectl rollout restart deployment/$APP_NAME -n $KUBERNETES_NAMESPACE
 ```
 
 Your Temporal Worker is now operational on AKS with a complete automation system for deployment and configuration management. The project provides a production-ready foundation for running Temporal workflows in Kubernetes with proper resource management, configuration handling, and deployment automation.
+
+## Optional: End-to-End Payload Encryption with Azure Key Vault
+
+This section describes how to transparently encrypt all Temporal workflow/activity payloads using a symmetric key stored in Azure Key Vault. This is **optional**—the rest of the project works without it.
+
+### Overview
+
+- All workflow and activity payloads are encrypted at rest and in transit using AES-GCM.
+- The encryption key is securely fetched at runtime from Azure Key Vault.
+- No key material is stored in code or config files.
+
+### Additional Setup
+
+#### 1. Install Additional Dependencies
+
+```bash
+pip install azure-identity azure-keyvault-secrets cryptography
+```
+
+#### 2. Add Key Vault Configuration
+
+Add these to your `config.env` (see `config.env.example`):
+
+```
+KEYVAULT_URL=https://your-keyvault-name.vault.azure.net/
+KEYVAULT_SECRET_NAME=temporal-encryption-key
+```
+
+#### 3. Provision the Key in Azure Key Vault
+
+Generate a 256-bit key and store it as a secret:
+
+```bash
+openssl rand -base64 32
+az keyvault secret set --vault-name <your-keyvault-name> --name temporal-encryption-key --value <base64-key>
+```
+
+### How It Works
+
+- On startup, the worker and client fetch the encryption key from Azure Key Vault.
+- All payloads are encrypted before being sent to Temporal, and decrypted on receipt.
+- The key is never stored in code or config files.
+
+### Key Files Added
+
+- `keyvault.py`: Fetches the encryption key from Azure Key Vault.
+- `crypto_converter.py`: Implements a custom `PayloadConverter` using AES-GCM.
+
+### Using the Encrypted Payload Converter
+
+To enable encryption, update your `worker.py` and `client.py` to use the custom converter.  
+**Only make these changes if you want encryption enabled.**
+
+#### worker.py (with encryption)
+
+```python
+from crypto_converter import encrypted_converter
+# ... other imports ...
+
+async def main():
+    # For local development, connect without TLS or API key
+    if TEMPORAL_ADDRESS.startswith("localhost") or "host.docker.internal" in TEMPORAL_ADDRESS:
+        client = await Client.connect(
+            TEMPORAL_ADDRESS,
+            namespace=TEMPORAL_NAMESPACE,
+            data_converter=encrypted_converter
+        )
+    else:
+        # For Temporal Cloud, use TLS and API key
+        client = await Client.connect(
+            TEMPORAL_ADDRESS,
+            namespace=TEMPORAL_NAMESPACE,
+            rpc_metadata={"temporal-namespace": TEMPORAL_NAMESPACE},
+            api_key=TEMPORAL_API_KEY,
+            tls=True,
+            data_converter=encrypted_converter
+        )
+    # ... rest of worker code ...
+```
+
+#### client.py (with encryption)
+
+```python
+from crypto_converter import encrypted_converter
+# ... other imports ...
+
+async def main():
+    # For local development, connect without TLS or API key
+    if TEMPORAL_ADDRESS.startswith("localhost") or "host.docker.internal" in TEMPORAL_ADDRESS:
+        client = await Client.connect(
+            TEMPORAL_ADDRESS,
+            namespace=TEMPORAL_NAMESPACE,
+            data_converter=encrypted_converter
+        )
+    else:
+        # For Temporal Cloud, use TLS and API key
+        client = await Client.connect(
+            TEMPORAL_ADDRESS,
+            namespace=TEMPORAL_NAMESPACE,
+            rpc_metadata={"temporal-namespace": TEMPORAL_NAMESPACE},
+            api_key=TEMPORAL_API_KEY,
+            tls=True,
+            data_converter=encrypted_converter
+        )
+    # ... rest of client code ...
+```
+
+### How to Test
+
+- Run your worker and client as usual.
+- All payloads will now be encrypted and decrypted transparently.
+- If the key is missing or incorrect, workflows will fail to decode payloads.
+
+### Security Notes
+
+- The encryption key is never written to disk or code.
+- Only the Azure identity used by your app needs access to the Key Vault secret.
+- You can rotate the key in Key Vault as needed (restart your app to pick up changes).
+
+---
+
+**You can stop at the main instructions above, or continue with this section to add end-to-end encryption for your Temporal payloads.**
