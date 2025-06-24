@@ -293,7 +293,7 @@ The `deploy.sh` script automates:
 - Applying secrets and config maps
 - Deploying the application to AKS
 
-#### **3. Manual Deployment Steps (if needed)**
+#### **3. OPTIONAL: Manual Deployment Steps (if so inclined, if nots, skip to Local Development topic)**
 
 If you prefer manual deployment, the automation scripts can be run individually:
 
