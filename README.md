@@ -36,7 +36,6 @@ temporal-on-aks-starter/
 ├── source_config.sh           # Script to load configuration
 ├── generate-k8s-manifests.sh  # Generate K8s manifests from config
 ├── deploy.sh                  # Complete deployment automation
-├── patch.sh                   # Quick patch script
 ├── start.sh                   # Local development/k8s startup
 ├── Dockerfile                 # Container configuration
 ├── deployment.yaml            # Generated K8s deployment
