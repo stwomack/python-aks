@@ -55,8 +55,8 @@ async def main():
         except Exception as e:
             logging.error(f"Failed to start workflow {workflow_id}: {e}")
 
-        logging.info("Waiting 10 seconds before next workflow execution...")
-        await asyncio.sleep(10)
+        logging.info("Waiting 20 seconds before next workflow execution...")
+        await asyncio.sleep(20)
 
 if __name__ == "__main__":
     asyncio.run(main())
