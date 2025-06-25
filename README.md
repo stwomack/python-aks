@@ -23,7 +23,7 @@ Before deploying Workers to AKS, ensure you have:
 This project includes a complete automation system for deploying Temporal workers to AKS:
 
 ```
-python-aks/
+temporal-on-aks-starter/
 ├── activities.py              # Temporal activities implementation
 ├── workflows.py               # Temporal workflows definition
 ├── worker.py                  # Temporal worker implementation
