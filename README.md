@@ -29,6 +29,8 @@ python-aks/
 ├── worker.py                  # Temporal worker implementation
 ├── client.py                  # Temporal client for triggering workflows
 ├── config.py                  # Configuration management module
+├── crypto_converter.py        # Custom payload converter for encryption
+├── keyvault.py                # Azure Key Vault integration for encryption keys
 ├── config.env                 # Centralized configuration file
 ├── config.env.example         # Example configuration template
 ├── source_config.sh           # Script to load configuration
@@ -40,6 +42,7 @@ python-aks/
 ├── deployment.yaml            # Generated K8s deployment
 ├── config-map.yaml            # Generated K8s config map
 ├── acr-secret.yaml            # Generated ACR authentication secret
+├── .gitignore                 # Git ignore rules
 └── CONFIGURATION.md           # Detailed configuration documentation
 ```
 
