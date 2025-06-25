@@ -467,7 +467,38 @@ Generate a 256-bit key and store it as a secret:
 
 ```bash
 openssl rand -base64 32
-az keyvault secret set --vault-name <your-keyvault-name> --name temporal-encryption-key --value <base64-key>
+```
+
+**Important:** Your Key Vault may use RBAC authorization (modern) or Access Policies (legacy). Check your Key Vault's "Access control (IAM)" page in Azure Portal.
+
+**For RBAC-enabled Key Vaults (recommended):**
+
+```bash
+# Get your object ID
+az account show --query user.principalId -o tsv
+
+# Assign Key Vault Secrets Officer role
+az role assignment create \
+  --role "Key Vault Secrets Officer" \
+  --assignee "YOUR_OBJECT_ID" \
+  --scope "/subscriptions/YOUR_SUBSCRIPTION_ID/resourcegroups/YOUR_RESOURCE_GROUP/providers/microsoft.keyvault/vaults/YOUR_KEYVAULT_NAME"
+```
+
+**Or use Azure Portal:**
+1. Go to your Key Vault → "Access control (IAM)"
+2. Click "Add" → "Add role assignment"
+3. Select "Key Vault Secrets Officer" role
+4. Add your user account
+5. Click "Review + assign"
+
+**For Access Policy Key Vaults (legacy):**
+```bash
+az keyvault set-policy --name YOUR_KEYVAULT_NAME --secret-permissions get set list delete --object-id YOUR_OBJECT_ID
+```
+
+**Then store the secret:**
+```bash
+az keyvault secret set --vault-name YOUR_KEYVAULT_NAME --name temporal-encryption-key --value YOUR_BASE64_KEY
 ```
 
 ### How It Works
