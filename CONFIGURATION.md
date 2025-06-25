@@ -73,6 +73,11 @@ The following variables are validated by `source_config.sh`:
 - `KUBERNETES_NAMESPACE`
 - `APP_NAME`
 - `APP_IMAGE`
+- `AZURE_CLIENT_ID`
+- `AZURE_TENANT_ID`
+- `AZURE_CLIENT_SECRET`
+- `KEYVAULT_URL`
+- `KEYVAULT_SECRET_NAME`
 
 ## Example config.env
 
@@ -81,6 +86,9 @@ The following variables are validated by `source_config.sh`:
 AZURE_SUBSCRIPTION_ID=your-subscription-id-here
 ACR_NAME=womackecr
 RESOURCE_GROUP=aks-temporal
+AZURE_CLIENT_ID=your-service-principal-client-id
+AZURE_TENANT_ID=your-azure-tenant-id
+AZURE_CLIENT_SECRET=your-service-principal-client-secret
 
 # Temporal Configuration
 TEMPORAL_ADDRESS=localhost:7233
@@ -98,11 +106,45 @@ CPU_LIMIT=0.5
 MEMORY_LIMIT=512Mi
 CPU_REQUEST=0.2
 MEMORY_REQUEST=256Mi
+
+# Azure Key Vault for Encryption (required for encryption)
+KEYVAULT_URL=https://your-keyvault-name.vault.azure.net/
+KEYVAULT_SECRET_NAME=temporal-encryption-key
+```
+
+## Azure Service Principal Setup
+
+This project uses Azure service principal authentication to access Azure Key Vault. You need to create a service principal and grant it appropriate permissions.
+
+### Creating a Service Principal
+
+```bash
+az ad sp create-for-rbac --name <your-app-name> --role Contributor --scopes /subscriptions/<subscription-id>
+```
+
+This command outputs a JSON object containing:
+- `appId` → Use as `AZURE_CLIENT_ID`
+- `tenant` → Use as `AZURE_TENANT_ID`  
+- `password` → Use as `AZURE_CLIENT_SECRET`
+
+### Granting Key Vault Access
+
+For RBAC-enabled Key Vaults (recommended):
+```bash
+az role assignment create \
+  --assignee <service-principal-client-id> \
+  --role "Key Vault Secrets User" \
+  --scope "/subscriptions/<subscription-id>/resourcegroups/<resource-group>/providers/microsoft.keyvault/vaults/<keyvault-name>"
+```
+
+For Access Policy Key Vaults (legacy):
+```bash
+az keyvault set-policy --name <keyvault-name> --spn <service-principal-client-id> --secret-permissions get list
 ```
 
 ## Azure Key Vault Integration for Payload Encryption
 
-This project supports encrypting all Temporal workflow/activity payloads using a symmetric key stored in Azure Key Vault. The key is fetched at runtime and used for AES-GCM encryption/decryption via a custom PayloadConverter.
+This project supports encrypting all Temporal workflow/activity payloads using a symmetric key stored in Azure Key Vault. The key is fetched at runtime using Azure service principal authentication and used for AES-GCM encryption/decryption via a custom PayloadConverter.
 
 ### Required Configuration
 Add the following to your `config.env` (these must be set for encryption to work):
@@ -123,41 +165,32 @@ These must be set as environment variables or in your `config.env` file. There a
    openssl rand -base64 32
    ```
 
-2. **Set up permissions for your Key Vault:**
+2. **Set up permissions for your service principal:**
 
    **Important:** Your Key Vault may use RBAC authorization (modern) or Access Policies (legacy). Check your Key Vault's "Access control (IAM)" page in Azure Portal.
 
    **For RBAC-enabled Key Vaults (recommended):**
    ```bash
-   # Get your object ID
-   az account show --query user.principalId -o tsv
-   
-   # Assign Key Vault Secrets Officer role
+   # Assign Key Vault Secrets User role to your service principal
    az role assignment create \
-     --role "Key Vault Secrets Officer" \
-     --assignee "YOUR_OBJECT_ID" \
-     --scope "/subscriptions/YOUR_SUBSCRIPTION_ID/resourcegroups/YOUR_RESOURCE_GROUP/providers/microsoft.keyvault/vaults/YOUR_KEYVAULT_NAME"
+     --assignee <service-principal-client-id> \
+     --role "Key Vault Secrets User" \
+     --scope "/subscriptions/<subscription-id>/resourcegroups/<resource-group>/providers/microsoft.keyvault/vaults/<keyvault-name>"
    ```
-
-   **Or use Azure Portal:**
-   1. Go to your Key Vault → "Access control (IAM)"
-   2. Click "Add" → "Add role assignment"
-   3. Select "Key Vault Secrets Officer" role
-   4. Add your user account
-   5. Click "Review + assign"
 
    **For Access Policy Key Vaults (legacy):**
    ```bash
-   az keyvault set-policy --name YOUR_KEYVAULT_NAME --secret-permissions get set list delete --object-id YOUR_OBJECT_ID
+   az keyvault set-policy --name <keyvault-name> --spn <service-principal-client-id> --secret-permissions get list
    ```
 
 3. Store it as a secret in your Key Vault:
    ```bash
-   az keyvault secret set --vault-name YOUR_KEYVAULT_NAME --name temporal-encryption-key --value YOUR_BASE64_KEY
+   az keyvault secret set --vault-name <keyvault-name> --name temporal-encryption-key --value <your-base64-key>
    ```
 
 ### How it Works
-- On startup, the worker and client fetch the encryption key from Key Vault.
+- On startup, the worker and client authenticate to Azure using the service principal credentials.
+- The encryption key is fetched from Key Vault using the authenticated service principal.
 - All workflow/activity payloads are transparently encrypted before being sent to Temporal, and decrypted on receipt.
 - The key is never stored in code or config files.
 

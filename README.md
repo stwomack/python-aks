@@ -42,6 +42,8 @@ temporal-on-aks-starter/
 ├── deployment.yaml            # Generated K8s deployment
 ├── config-map.yaml            # Generated K8s config map
 ├── acr-secret.yaml            # Generated ACR authentication secret
+├── azure-secret.yaml          # Generated Azure secret
+├── temporal-secret.yaml       # Generated Temporal secret
 ├── .gitignore                 # Git ignore rules
 └── CONFIGURATION.md           # Detailed configuration documentation
 ```
@@ -49,6 +51,34 @@ temporal-on-aks-starter/
 ### **Getting Started**
 
 This walkthrough demonstrates writing Temporal Worker code, containerizing and publishing the Worker to Azure Container Registry (ACR), then deploying to AKS. Our example leverages Temporal's Python SDK with a complete automation system.
+
+### **Azure Service Principal Setup (Required for Key Vault Access)**
+
+If you're using Azure Key Vault for encryption (which is enabled by default), you need to set up a service principal for authentication:
+
+#### **1. Create a Service Principal**
+```bash
+az ad sp create-for-rbac --name <your-app-name> --role Contributor --scopes /subscriptions/<subscription-id>
+```
+
+This command outputs a JSON object containing:
+- `appId` → Use as `AZURE_CLIENT_ID`
+- `tenant` → Use as `AZURE_TENANT_ID`  
+- `password` → Use as `AZURE_CLIENT_SECRET`
+
+#### **2. Grant Key Vault Access**
+For RBAC-enabled Key Vaults (recommended):
+```bash
+az role assignment create \
+  --assignee <service-principal-client-id> \
+  --role "Key Vault Secrets User" \
+  --scope "/subscriptions/<subscription-id>/resourcegroups/<resource-group>/providers/microsoft.keyvault/vaults/<keyvault-name>"
+```
+
+For Access Policy Key Vaults (legacy):
+```bash
+az keyvault set-policy --name <keyvault-name> --spn <service-principal-client-id> --secret-permissions get list
+```
 
 ### **Configuration Management**
 
@@ -70,6 +100,11 @@ This project uses a centralized configuration system. All environment variables 
 - `APP_IMAGE`: Full image name including ACR path
 - `CPU_LIMIT/MEMORY_LIMIT`: Resource limits
 - `CPU_REQUEST/MEMORY_REQUEST`: Resource requests
+- `AZURE_CLIENT_ID`: Azure service principal client ID (required for Key Vault access)
+- `AZURE_TENANT_ID`: Azure tenant ID (required for Key Vault access)
+- `AZURE_CLIENT_SECRET`: Azure service principal client secret (required for Key Vault access)
+- `KEYVAULT_URL`: Azure Key Vault URL (required for encryption)
+- `KEYVAULT_SECRET_NAME`: Name of the secret in Key Vault containing the encryption key
 
 #### **Setup Configuration**
 ```bash
@@ -299,7 +334,7 @@ The `deploy.sh` script automates:
 - Tagging and pushing the image to ACR
 - Creating Kubernetes namespace
 - Generating Kubernetes manifests from configuration
-- Applying secrets and config maps
+- Applying secrets (ACR, Azure, and Temporal) and config maps
 - Deploying the application to AKS
 
 #### **3. OPTIONAL: Manual Deployment Steps (if so inclined, if not, skip to Local Development topic)**
@@ -313,6 +348,8 @@ If you prefer manual deployment, the automation scripts can be run individually:
 
 This script generates:
 - `acr-secret.yaml` - ACR authentication secret
+- `azure-secret.yaml` - Azure secret
+- `temporal-secret.yaml` - Temporal secret
 - `config-map.yaml` - Temporal configuration
 - `deployment.yaml` - Application deployment
 
@@ -326,6 +363,8 @@ kubectl create namespace $KUBERNETES_NAMESPACE --dry-run=client -o yaml | kubect
 
 # Apply secrets and config
 kubectl apply -f acr-secret.yaml --namespace $KUBERNETES_NAMESPACE
+kubectl apply -f azure-secret.yaml --namespace $KUBERNETES_NAMESPACE
+kubectl apply -f temporal-secret.yaml --namespace $KUBERNETES_NAMESPACE
 kubectl apply -f config-map.yaml --namespace $KUBERNETES_NAMESPACE
 
 # Deploy the application
@@ -452,157 +491,4 @@ pip install azure-identity azure-keyvault-secrets cryptography
 
 #### 2. Add Key Vault Configuration
 
-Add these to your `config.env` (see `config.env.example`). These must be set for encryption to work:
-
-```
-KEYVAULT_URL=https://your-keyvault-name.vault.azure.net/
-KEYVAULT_SECRET_NAME=temporal-encryption-key
-```
-
-- `KEYVAULT_URL`: The full URL of your Azure Key Vault instance. **Required for encryption.**
-- `KEYVAULT_SECRET_NAME`: The name of the secret in Key Vault containing your base64-encoded AES key (128, 192, or 256 bits). **Required for encryption.**
-
-These must be set as environment variables or in your `config.env` file. There are no defaults or fallbacks for these values.
-
-#### 3. Provision the Key in Azure Key Vault
-
-Generate a 256-bit key and store it as a secret:
-
-```bash
-openssl rand -base64 32
-```
-
-**Important:** Your Key Vault may use RBAC authorization (modern) or Access Policies (legacy). Check your Key Vault's "Access control (IAM)" page in Azure Portal.
-
-**For RBAC-enabled Key Vaults (recommended):**
-
-```bash
-# Get your object ID
-az account show --query user.principalId -o tsv
-
-# Assign Key Vault Secrets Officer role
-az role assignment create \
-  --role "Key Vault Secrets Officer" \
-  --assignee "YOUR_OBJECT_ID" \
-  --scope "/subscriptions/YOUR_SUBSCRIPTION_ID/resourcegroups/YOUR_RESOURCE_GROUP/providers/microsoft.keyvault/vaults/YOUR_KEYVAULT_NAME"
-```
-
-**Or use Azure Portal:**
-1. Go to your Key Vault → "Access control (IAM)"
-2. Click "Add" → "Add role assignment"
-3. Select "Key Vault Secrets Officer" role
-4. Add your user account
-5. Click "Review + assign"
-
-**For Access Policy Key Vaults (legacy):**
-```bash
-az keyvault set-policy --name YOUR_KEYVAULT_NAME --secret-permissions get set list delete --object-id YOUR_OBJECT_ID
-```
-
-**Then store the secret:**
-```bash
-az keyvault secret set --vault-name YOUR_KEYVAULT_NAME --name temporal-encryption-key --value YOUR_BASE64_KEY
-```
-
-### How It Works
-
-- On startup, the worker and client fetch the encryption key from Azure Key Vault.
-- All payloads are encrypted before being sent to Temporal, and decrypted on receipt.
-- The key is never stored in code or config files.
-
-### Key Files Added
-
-- `keyvault.py`: Fetches the encryption key from Azure Key Vault.
-- `crypto_converter.py`: Implements a custom `PayloadConverter` using AES-GCM.
-
-**Note:** If you review or extend `crypto_converter.py`, be sure to use:
-```python
-from temporalio.converter import PayloadConverter, DataConverter, DefaultPayloadConverter
-# ...
-class EncryptedPayloadConverter(PayloadConverter):
-    # ...
-    def to_payloads(self, values, *args, **kwargs):
-        return [self.to_payload(value) for value in values]
-    def from_payloads(self, payloads, *args, **kwargs):
-        return [self.from_payload(payload) for payload in payloads]
-# ...
-self._default_converter = DefaultPayloadConverter()
-```
-These methods are required by the Temporal Python SDK interface.
-
-### Using the Encrypted Payload Converter
-
-To enable encryption, update your `worker.py` and `client.py` to use the custom converter.  
-**Only make these changes if you want encryption enabled.**
-
-#### worker.py (with encryption)
-
-```python
-from config import TEMPORAL_ADDRESS, TEMPORAL_NAMESPACE, TEMPORAL_TASK_QUEUE, TEMPORAL_API_KEY, KEYVAULT_URL, KEYVAULT_SECRET_NAME
-from crypto_converter import encrypted_converter
-# ... other imports ...
-
-async def main():
-    # For local development, connect without TLS or API key
-    if TEMPORAL_ADDRESS.startswith("localhost") or "host.docker.internal" in TEMPORAL_ADDRESS:
-        client = await Client.connect(
-            TEMPORAL_ADDRESS,
-            namespace=TEMPORAL_NAMESPACE,
-            data_converter=encrypted_converter
-        )
-    else:
-        # For Temporal Cloud, use TLS and API key
-        client = await Client.connect(
-            TEMPORAL_ADDRESS,
-            namespace=TEMPORAL_NAMESPACE,
-            rpc_metadata={"temporal-namespace": TEMPORAL_NAMESPACE},
-            api_key=TEMPORAL_API_KEY,
-            tls=True,
-            data_converter=encrypted_converter
-        )
-    # ... rest of worker code ...
-```
-
-#### client.py (with encryption)
-
-```python
-from config import TEMPORAL_ADDRESS, TEMPORAL_NAMESPACE, TEMPORAL_TASK_QUEUE, TEMPORAL_API_KEY, KEYVAULT_URL, KEYVAULT_SECRET_NAME
-from crypto_converter import encrypted_converter
-# ... other imports ...
-
-async def main():
-    # For local development, connect without TLS or API key
-    if TEMPORAL_ADDRESS.startswith("localhost") or "host.docker.internal" in TEMPORAL_ADDRESS:
-        client = await Client.connect(
-            TEMPORAL_ADDRESS,
-            namespace=TEMPORAL_NAMESPACE,
-            data_converter=encrypted_converter
-        )
-    else:
-        # For Temporal Cloud, use TLS and API key
-        client = await Client.connect(
-            TEMPORAL_ADDRESS,
-            namespace=TEMPORAL_NAMESPACE,
-            rpc_metadata={"temporal-namespace": TEMPORAL_NAMESPACE},
-            api_key=TEMPORAL_API_KEY,
-            tls=True,
-            data_converter=encrypted_converter
-        )
-    # ... rest of client code ...
-```
-
-### How to Test
-
-- Run your worker and client as usual.
-- All payloads will now be encrypted and decrypted transparently.
-- If the key is missing or incorrect, workflows will fail to decode payloads.
-
-### Security Notes
-
-- The encryption key is never written to disk or code.
-- Only the Azure identity used by your app needs access to the Key Vault secret.
-- You can rotate the key in Key Vault as needed (restart your app to pick up changes).
-
----
-
-**You can stop at the main instructions above, or continue with this section to add end-to-end encryption for your Temporal payloads.**
+Add these to your `config.env` (see `config.env.example`
