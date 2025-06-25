@@ -25,7 +25,7 @@ echo "Generating Kubernetes manifests from config..."
 ./generate-k8s-manifests.sh
 
 echo "Applying Secret..."
-apply -f acr-secret.yaml --namespace $KUBERNETES_NAMESPACE
+kubectl apply -f acr-secret.yaml --namespace $KUBERNETES_NAMESPACE
 
 echo "Applying Azure Secret..."
 kubectl apply -f azure-secret.yaml --namespace $KUBERNETES_NAMESPACE
