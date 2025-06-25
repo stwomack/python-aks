@@ -38,6 +38,22 @@ EOF
 
 echo "  - azure-secret.yaml"
 
+# Generate Temporal Secret
+TEMPORAL_API_KEY_B64=$(echo -n "$TEMPORAL_API_KEY" | base64)
+
+cat > temporal-secret.yaml << EOF
+apiVersion: v1
+kind: Secret
+metadata:
+  name: temporal-secret
+  namespace: $KUBERNETES_NAMESPACE
+type: Opaque
+data:
+  TEMPORAL_API_KEY: $TEMPORAL_API_KEY_B64
+EOF
+
+echo "  - temporal-secret.yaml"
+
 # Generate ConfigMap
 cat > config-map.yaml << EOF
 apiVersion: v1

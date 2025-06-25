@@ -30,6 +30,9 @@ kubectl apply -f acr-secret.yaml --namespace $KUBERNETES_NAMESPACE
 echo "Applying Azure Secret..."
 kubectl apply -f azure-secret.yaml --namespace $KUBERNETES_NAMESPACE
 
+echo "Applying Temporal Secret..."
+kubectl apply -f temporal-secret.yaml --namespace $KUBERNETES_NAMESPACE
+
 echo "Applying ConfigMap..."
 kubectl apply -f config-map.yaml --namespace $KUBERNETES_NAMESPACE
 
