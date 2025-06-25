@@ -518,12 +518,12 @@ from temporalio.converter import PayloadConverter, DataConverter, DefaultPayload
 # ...
 class EncryptedPayloadConverter(PayloadConverter):
     # ...
-    def to_payloads(self, values):
+    def to_payloads(self, values, *args, **kwargs):
         return [self.to_payload(value) for value in values]
-    def from_payloads(self, payloads):
+    def from_payloads(self, payloads, *args, **kwargs):
         return [self.from_payload(payload) for payload in payloads]
 # ...
-self._underlying = DefaultPayloadConverter()
+self._default_converter = DefaultPayloadConverter()
 ```
 These methods are required by the Temporal Python SDK interface.
 
