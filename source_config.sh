@@ -28,6 +28,8 @@ required_vars=(
     "KUBERNETES_NAMESPACE"
     "APP_NAME"
     "APP_IMAGE"
+    "KEYVAULT_URL"
+    "KEYVAULT_SECRET_NAME"
 )
 
 echo "Validating required environment variables..."
