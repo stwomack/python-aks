@@ -22,6 +22,22 @@ EOF
 
 echo "  - acr-secret.yaml"
 
+# Generate Azure Secret
+AZURE_CLIENT_SECRET_B64=$(echo -n "$AZURE_CLIENT_SECRET" | base64)
+
+cat > azure-secret.yaml << EOF
+apiVersion: v1
+kind: Secret
+metadata:
+  name: azure-secret
+  namespace: $KUBERNETES_NAMESPACE
+type: Opaque
+data:
+  AZURE_CLIENT_SECRET: $AZURE_CLIENT_SECRET_B64
+EOF
+
+echo "  - azure-secret.yaml"
+
 # Generate ConfigMap
 cat > config-map.yaml << EOF
 apiVersion: v1
@@ -33,6 +49,10 @@ data:
   TEMPORAL_ADDRESS: "$TEMPORAL_ADDRESS"
   TEMPORAL_NAMESPACE: "$TEMPORAL_NAMESPACE"
   TEMPORAL_TASK_QUEUE: "$TEMPORAL_TASK_QUEUE"
+  AZURE_CLIENT_ID: "$AZURE_CLIENT_ID"
+  AZURE_TENANT_ID: "$AZURE_TENANT_ID"
+  KEYVAULT_URL: "$KEYVAULT_URL"
+  KEYVAULT_SECRET_NAME: "$KEYVAULT_SECRET_NAME"
 EOF
 
 echo "  - config-map.yaml"
@@ -82,6 +102,31 @@ spec:
                     secretKeyRef:
                       name: temporal-secret
                       key: TEMPORAL_API_KEY
+                - name: AZURE_CLIENT_ID
+                  valueFrom:
+                    configMapKeyRef:
+                      name: temporal-worker-config
+                      key: AZURE_CLIENT_ID
+                - name: AZURE_TENANT_ID
+                  valueFrom:
+                    configMapKeyRef:
+                      name: temporal-worker-config
+                      key: AZURE_TENANT_ID
+                - name: AZURE_CLIENT_SECRET
+                  valueFrom:
+                    secretKeyRef:
+                      name: azure-secret
+                      key: AZURE_CLIENT_SECRET
+                - name: KEYVAULT_URL
+                  valueFrom:
+                    configMapKeyRef:
+                      name: temporal-worker-config
+                      key: KEYVAULT_URL
+                - name: KEYVAULT_SECRET_NAME
+                  valueFrom:
+                    configMapKeyRef:
+                      name: temporal-worker-config
+                      key: KEYVAULT_SECRET_NAME
               resources:
                 limits:
                   cpu: "$CPU_LIMIT"

@@ -10,11 +10,15 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Temporal Python SDK
-RUN pip install --no-cache-dir temporalio requests
+RUN pip install --no-cache-dir temporalio azure-identity azure-keyvault-secrets cryptography requests
 
 # Copy application code
-COPY *.py /app/
-COPY start.sh /app/start.sh
+COPY . /app/
+
+#COPY *.py /app/
+#COPY start.sh /app/start.sh
+#COPY source_config.sh /app/source_config.sh
+#COPY config.env /app/config.env
 
 # Configure Python for unbuffered output
 ENV PYTHONUNBUFFERED=1

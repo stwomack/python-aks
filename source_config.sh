@@ -30,6 +30,9 @@ required_vars=(
     "APP_IMAGE"
     "KEYVAULT_URL"
     "KEYVAULT_SECRET_NAME"
+    "AZURE_CLIENT_ID"
+    "AZURE_TENANT_ID"
+    "AZURE_CLIENT_SECRET"
 )
 
 echo "Validating required environment variables..."

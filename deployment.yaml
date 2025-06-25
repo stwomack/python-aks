@@ -41,6 +41,31 @@ spec:
                     secretKeyRef:
                       name: temporal-secret
                       key: TEMPORAL_API_KEY
+                - name: AZURE_CLIENT_ID
+                  valueFrom:
+                    configMapKeyRef:
+                      name: temporal-worker-config
+                      key: AZURE_CLIENT_ID
+                - name: AZURE_TENANT_ID
+                  valueFrom:
+                    configMapKeyRef:
+                      name: temporal-worker-config
+                      key: AZURE_TENANT_ID
+                - name: AZURE_CLIENT_SECRET
+                  valueFrom:
+                    secretKeyRef:
+                      name: azure-secret
+                      key: AZURE_CLIENT_SECRET
+                - name: KEYVAULT_URL
+                  valueFrom:
+                    configMapKeyRef:
+                      name: temporal-worker-config
+                      key: KEYVAULT_URL
+                - name: KEYVAULT_SECRET_NAME
+                  valueFrom:
+                    configMapKeyRef:
+                      name: temporal-worker-config
+                      key: KEYVAULT_SECRET_NAME
               resources:
                 limits:
                   cpu: "0.5"
